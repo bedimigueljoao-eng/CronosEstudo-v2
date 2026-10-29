@@ -1,0 +1,10 @@
+package ao.bedi.cronosestudo.service
+import android.app.*
+import android.content.*
+import android.os.*
+import ao.bedi.cronosestudo.MainActivity
+class StudyTimerService:Service(){private val h=Handler(Looper.getMainLooper());private lateinit var tick:Runnable
+ override fun onCreate(){super.onCreate();if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("timer","Cronómetro de estudo",NotificationManager.IMPORTANCE_LOW));tick=object:Runnable{override fun run(){show();h.postDelayed(this,1000)}}}
+ override fun onStartCommand(i:Intent?,f:Int,id:Int):Int{val p=getSharedPreferences("timer_v2",0);when(i?.action){"START"->p.edit().putString("discipline",i.getStringExtra("discipline")?:"Estudo").putLong("start",System.currentTimeMillis()).putLong("acc",0).putBoolean("running",true).apply();"PAUSE"->{val acc=p.getLong("acc",0)+(System.currentTimeMillis()-p.getLong("start",System.currentTimeMillis()));p.edit().putLong("acc",acc).putBoolean("running",false).apply()};"RESUME"->p.edit().putLong("start",System.currentTimeMillis()).putBoolean("running",true).apply();"STOP"->{p.edit().clear().apply();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();return START_NOT_STICKY}};show();h.removeCallbacks(tick);h.post(tick);return START_STICKY}
+ private fun show(){val p=getSharedPreferences("timer_v2",0);val ms=p.getLong("acc",0)+(if(p.getBoolean("running",false))System.currentTimeMillis()-p.getLong("start",System.currentTimeMillis())else 0);val text="%02d:%02d:%02d".format(ms/3600000,(ms/60000)%60,(ms/1000)%60);val open=PendingIntent.getActivity(this,1,Intent(this,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE);val n=Notification.Builder(this,"timer").setSmallIcon(android.R.drawable.ic_media_play).setContentTitle(p.getString("discipline","Estudo")).setContentText(text).setOngoing(true).setContentIntent(open).build();startForeground(88,n)}
+ override fun onDestroy(){h.removeCallbacks(tick);super.onDestroy()};override fun onBind(i:Intent?)=null}
